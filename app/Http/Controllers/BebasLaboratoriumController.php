@@ -4,10 +4,16 @@ namespace App\Http\Controllers;
 
 use App\BebasLaboratorium;
 use App\BebasLaboratoriumChecklist;
+use App\Laboran;
 use App\Pelanggan;
 use App\Laboratorium;
+use App\Pejabat;
+use PDF;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class BebasLaboratoriumController extends Controller
 {
@@ -40,9 +46,11 @@ class BebasLaboratoriumController extends Controller
             ->where('kode_pelanggan', $kode_pelanggan)
             ->get();
 
-        return response()->json([
-            'data' => $data
-        ]);
+
+        return
+            response()->json([
+                'data' => $data
+            ]);
 
         // dd($data->toArray());
     }
@@ -68,10 +76,13 @@ class BebasLaboratoriumController extends Controller
         try {
             $bebasId = $request->input('bebas_id');
             $checklistNumber = $request->input('checklist_number');
-            $isChecked = $request->input('is_checked', false);
+            $isChecked = filter_var(
+                $request->input('is_checked'),
+                FILTER_VALIDATE_BOOLEAN
+            );
             $role = $request->input('role');
 
-            \Log::info('Update checklist request', [
+            Log::info('Update checklist request', [
                 'user' => auth()->user()->username ?? 'unknown',
                 'bebas_id' => $bebasId,
                 'checklist_number' => $checklistNumber,
@@ -102,10 +113,10 @@ class BebasLaboratoriumController extends Controller
 
             // Update dengan mass assignment
             $bebas->update([
-                $column => $isChecked ? 1 : 0,
+                $column => $isChecked
             ]);
 
-            \Log::info('Checklist updated successfully', [
+            Log::info('Checklist updated successfully', [
                 'bebas_id' => $bebasId,
                 'column' => $column,
                 'value' => $isChecked ? 1 : 0,
@@ -117,18 +128,18 @@ class BebasLaboratoriumController extends Controller
                 'data' => $bebas,
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Bebas laboratorium not found', ['bebas_id' => $request->input('bebas_id')]);
-            
+            Log::error('Bebas laboratorium not found', ['bebas_id' => $request->input('bebas_id')]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Data bebas laboratorium tidak ditemukan',
             ], 404);
         } catch (\Exception $e) {
-            \Log::error('Error updating checklist', [
+            Log::error('Error updating checklist', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage(),
@@ -159,12 +170,13 @@ class BebasLaboratoriumController extends Controller
     public function accLaboran(Request $request)
     {
         $bebasId = $request->input('bebas_id');
-        
+        $kodeLaboran = $request->input('kode_laboran');
+
         $bebas = BebasLaboratorium::findOrFail($bebasId);
 
         // Cek apakah semua 5 checklist sudah di-check
         $columns = ['ck_bebas_pinjaman', 'ck_buka_bakteri', 'ck_bayar_bahan', 'ck_alat_bersih', 'ck_alat_ganti'];
-        
+
         foreach ($columns as $column) {
             if (!$bebas->$column) {
                 return response()->json([
@@ -175,8 +187,9 @@ class BebasLaboratoriumController extends Controller
         }
 
         // Update approval laboran
-        $bebas->acc_laboran = 1;
+        $bebas->acc_laboran = $kodeLaboran;
         $bebas->save();
+        $this->emailToKalab($bebasId);
 
         return response()->json([
             'success' => true,
@@ -184,127 +197,182 @@ class BebasLaboratoriumController extends Controller
         ]);
     }
 
+    public function batalAccLaboran(Request $request)
+    {
+        $bebasId = $request->input('bebas_id');
+
+        $bebas = BebasLaboratorium::findOrFail($bebasId);
+
+        // Update batal approval laboran
+        $bebas->acc_laboran = 0;
+        $bebas->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Batal persetujuan laboran berhasil disimpan',
+        ]);
+    }
     /**
      * Approve checklist oleh kalab
      */
     public function accKalab(Request $request)
     {
         $bebasId = $request->input('bebas_id');
-        
+        $kodeKalab = $request->input('kode_kalab');
+        $kodePelanggan = $request->input('kode_pelanggan');
+
         $bebas = BebasLaboratorium::findOrFail($bebasId);
 
-        // Cek apakah semua 5 checklist sudah di-check
-        $columns = ['ck_bebas_pinjaman', 'ck_buka_bakteri', 'ck_bayar_bahan', 'ck_alat_bersih', 'ck_alat_ganti'];
-        
-        foreach ($columns as $column) {
-            if (!$bebas->$column) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Semua syarat harus di-checklist terlebih dahulu',
-                ], 422);
-            }
+        //Cek apakah laboran sudah memberikan acc
+        if ($bebas->acc_laboran != 0) {
+            $bebas->acc_kalab = $kodeKalab;
+            $bebas->tanggal_acc_kalab = now();
+            $bebas->save();
+
+            $this->emailAccKalab($bebasId);
+
+            $namaqr = $kodePelanggan . "-" . $bebas->laboratorium->nama_laboratorium;
+
+            QrCode::size(300)
+                ->format('png')
+                ->generate(config('app.url') . '/form-bebas-lab/' . $kodePelanggan . '/' . str_replace(' ', '-', $bebas->laboratorium->nama_laboratorium), public_path('qrcode/' . $namaqr . '.png'));
+
+            return response()->json([
+                'status' => 'oke',
+                'message' => 'Persetujuan kalab berhasil disimpan',
+            ]);
+        } else {
+            return response()->json([
+                'status' => 'gagal',
+                'message' => 'Gagal memberikan persetujuan',
+            ], 422);
         }
 
-        // Update approval kalab
-        $bebas->acc_kalab = 1;
-        $bebas->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Persetujuan kalab berhasil disimpan',
-        ]);
     }
 
-    // /**
-    //  * Get data bebas laboratorium untuk datatable
-    //  */
-    // public function getData(Request $request)
-    // {
-    //     $kodePelanggan = $request->input('pelanggan_id');
+    public function emailToKalab($bebasLabId)
+    {
+        $bebasLaboratorium = BebasLaboratorium::find($bebasLabId);
+        $pelanggan = Pelanggan::find($bebasLaboratorium->kode_pelanggan);
+        $laboratorium = Laboratorium::find($bebasLaboratorium->laboratorium_id);
+        $kalab = Pejabat::find($laboratorium->kode_pejabat);
+        $tanggal = Carbon::now()->isoFormat('DD MMMM YYYY');
+        $waktu = Carbon::now()->toTimeString();
 
-    //     if (!$kodePelanggan) {
-    //         return response()->json(['data' => []]);
-    //     }
+        $to_name = "ubaya";
+        $to_email = "s160423189@student.ubaya.ac.id";
+        $from_email = "julvanlay789@gmail.com";
+        $from_name = "Yulfan";
 
-    //     $bebasLaboratoriums = BebasLaboratorium::where('kode_pelanggan', $kodePelanggan)
-    //         ->with(['laboratorium', 'checklists'])
-    //         ->get();
+        $subject = 'Notifikasi Persetujuan Bebas Laboratorium';
 
-    //     $data = $bebasLaboratoriums->map(function ($bebas) {
-    //         return [
-    //             'id' => $bebas->id,
-    //             'laboratorium_id' => $bebas->laboratorium_id,
-    //             'laboratorium_name' => $bebas->laboratorium->nama_laboratorium ?? '-',
-    //             'form_url' => $bebas->form_url ?? '#',
-    //             'laboran_complete' => $bebas->isLaboranChecklistComplete(),
-    //             'kalab_complete' => $bebas->isKalabChecklistComplete(),
-    //             'checklists' => $bebas->checklists->toArray(),
-    //         ];
-    //     });
+        $data = [
+            'bebasLaboratorium' => $bebasLaboratorium,
+            'pelanggan' => $pelanggan,
+            'laboratorium' => $laboratorium,
+            'kalab' => $kalab,
+            'tanggal' => $tanggal,
+            'waktu' => $waktu,
+        ];
 
-    //     return response()->json(['data' => $data]);
-    // }
+        Mail::send('bebas-lab.mailToKalab', $data, function ($message) use ($to_name, $to_email, $subject, $from_email, $from_name) {
 
-    // /**
-    //  * Get checklist items untuk preview/review
-    //  */
-    // public function getChecklists($bebasLaboratoriumId)
-    // {
-    //     $bebas = BebasLaboratorium::with('checklists')->findOrFail($bebasLaboratoriumId);
+            $message->to($to_email, $to_name)
+                ->subject($subject);
+            $message->setReplyTo('julvanlay789@gmail.com', 'Coba');
+        });
+    }
 
-    //     return response()->json([
-    //         'success' => true,
-    //         'data' => $bebas->checklists,
-    //     ]);
-    // }
+    public function emailAccKalab($bebasLabId)
+    {
+        $bebas = BebasLaboratorium::find($bebasLabId);
+        $pelanggan = Pelanggan::find($bebas->kode_pelanggan);
+        $laboratorium = Laboratorium::find($bebas->laboratorium_id);
+        $kalab = Pejabat::find($laboratorium->kode_pejabat);
+        $laboran = Laboran::where('kode_laboran', $bebas->acc_laboran)->firstOrFail();
+        $tanggal = Carbon::now()->isoFormat('DD MMMM YYYY');
+        $waktu = Carbon::now()->toTimeString();
+        $tanggal = Carbon::parse($bebas->tanggal_acc_kalab)
+            ->isoFormat('DD MMMM YYYY');
+        $tahun = Carbon::parse($bebas->tanggal_acc_kalab)->year;
 
-    // /**
-    //  * Update checklist laboran
-    //  */
-    // public function updateLaboranChecklist(Request $request)
-    // {
-    //     $checklistId = $request->input('checklist_id');
-    //     $isChecked = $request->input('is_checked', false);
+        $to_name = "ubaya";
+        $to_email = "s160423187@student.ubaya.ac.id";
 
-    //     $checklist = BebasLaboratoriumChecklist::findOrFail($checklistId);
-    //     $checklist->laboran_checked = $isChecked;
-    //     $checklist->laboran_checked_at = $isChecked ? Carbon::now() : null;
-    //     $checklist->save();
+        $subject = 'Notifikasi ACC Bebas Laboratorium';
+        $data = [
+            'bebasLaboratorium' => $bebas,
+            'pelanggan' => $pelanggan,
+            'laboratorium' => $laboratorium,
+            'kalab' => $kalab,
+            'tanggal' => $tanggal,
+            'waktu' => $waktu,
+        ];
 
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Checklist laboran berhasil diperbarui',
-    //         'data' => $checklist,
-    //     ]);
-    // }
+        $namaEdit = $laboratorium->nama_laboratorium;
 
-    // /**
-    //  * Update checklist kalab
-    //  */
-    // public function updateKalabChecklist(Request $request)
-    // {
-    //     $checklistId = $request->input('checklist_id');
-    //     $isChecked = $request->input('is_checked', false);
+        $daftarChecklist = [
+            'ck_bebas_pinjaman' => 'Peralatan gelas dan kunci loker',
+            'ck_buka_bakteri' => 'Membersihkan biakan bakteri (Coldroom, CTR)',
+            'ck_bayar_bahan' => 'Membayar bahan dan media yang digunakan',
+            'ck_alat_bersih' => 'Alat gelas dalam keadaan bersih dari label atau coretan-coretan',
+            'ck_alat_ganti' => 'Alat yang pecah atau rusak suddah diganti'
+        ];
+        $pdf = PDF::loadView('laporan.form-bebas-lab', compact('namaEdit', 'pelanggan', 'laboran', 'kalab', 'bebas', 'daftarChecklist', 'tanggal', 'tahun'));
 
-    //     $checklist = BebasLaboratoriumChecklist::findOrFail($checklistId);
-    //     $checklist->kalab_checked = $isChecked;
-    //     $checklist->kalab_checked_at = $isChecked ? Carbon::now() : null;
-    //     $checklist->save();
+        Mail::send('bebas-lab.mail-acc-kalab', $data, function ($message) use ($pelanggan, $subject, $pdf, $laboratorium, $to_email, $to_name) {
 
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Checklist kalab berhasil diperbarui',
-    //         'data' => $checklist,
-    //     ]);
-    // }
+            $message->to(
+                $to_email,
+                $to_name
+            )
+                ->subject($subject)
+                ->attachData(
+                    $pdf->output(),
+                    'Bebas Lab - ' . $laboratorium->nama_laboratorium . '.pdf'
+                );
 
-    // /**
-    //  * Get pelanggan untuk select dropdown
-    //  */
-    // public function getPelangganList()
-    // {
-    //     $pelanggans = Pelanggan::select('id', 'nama_pelanggan')->get();
+            $message->replyTo(
+                'julvanlay789@gmail.com',
+                'SIMLAB FTB'
+            );
+        });
 
-    //     return response()->json(['data' => $pelanggans]);
-    // }
+    }
+
+    public function cetak($kodePelanggan, $namaLab)
+    {
+        $namaEdit = str_replace('-', ' ', $namaLab);
+        $idLab = Laboratorium::where('nama_laboratorium', $namaEdit)->firstOrFail()->id;
+        $bebas = BebasLaboratorium::with([
+            'pelanggan',
+            'laboratorium',
+        ])
+            ->where('kode_pelanggan', $kodePelanggan)
+            ->where('laboratorium_id', $idLab)
+            ->firstOrFail();
+
+        $pelanggan = Pelanggan::where('kode_pelanggan', $kodePelanggan)->firstOrFail();
+        $laboran = Laboran::where('kode_laboran', $bebas->acc_laboran)->firstOrFail();
+        $kalab = Pejabat::where('kode_pejabat', $bebas->acc_kalab)->firstOrFail();
+        $tanggal = Carbon::parse($bebas->tanggal_acc_kalab)
+            ->isoFormat('DD MMMM YYYY');
+        $tahun = Carbon::parse($bebas->tanggal_acc_kalab)->year;
+
+        $daftarChecklist = [
+            'ck_bebas_pinjaman' => 'Peralatan gelas dan kunci loker',
+            'ck_buka_bakteri' => 'Membersihkan biakan bakteri (Coldroom, CTR)',
+            'ck_bayar_bahan' => 'Membayar bahan dan media yang digunakan',
+            'ck_alat_bersih' => 'Alat gelas dalam keadaan bersih dari label atau coretan-coretan',
+            'ck_alat_ganti' => 'Alat yang pecah atau rusak suddah diganti'
+        ];
+
+
+        $pdf = PDF::loadView('laporan.form-bebas-lab', compact('namaEdit', 'pelanggan', 'laboran', 'kalab', 'bebas', 'daftarChecklist', 'tanggal', 'tahun'));
+        $pdf->setPaper('A4', 'potrait');
+        $pdf->getDomPDF()->set_option("enable_php", true);
+
+
+        return $pdf->stream("Form Bebas Lab - " . $pelanggan->nama_pelanggan . ".pdf");
+    }
 }

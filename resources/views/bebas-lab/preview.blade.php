@@ -9,11 +9,7 @@
         <div class="col-md-8">
             <h2>Preview Bebas Laboratorium</h2>
         </div>
-        <div class="col-md-4 text-right">
-            <a href="{{ url('/bebas-lab/') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Kembali
-            </a>
-        </div>
+      <div class="col-md-4 text-right"> <a href="{{ url('/bebas-lab/') }}" class="btn btn-secondary"> <i class="fas fa-arrow-left"></i> Kembali </a> </div>
     </div>
 
     <!-- Info Box -->
@@ -48,7 +44,7 @@
                             <th width="10%">No</th>
                             <th width="50%">Daftar Syarat</th>
                             <th width="20%">Laboran</th>
-                            <th width="20%">Kalab</th>
+                            <!-- <th width="20%">Kalab</th> -->
                         </tr>
                     </thead>
                     <tbody>
@@ -82,11 +78,11 @@
                                                data-checklist-number="{{ $number }}"
                                                data-bebas-id="{{ $bebas->id }}"
                                                {{ $bebas->$column ? 'checked' : '' }}
-                                               {{ auth()->user()->laboran || auth()->user()->kalab ? '' : 'disabled' }}>
+                                               {{ auth()->user()->laboran && auth()->user()->laboran->laboratorium == $bebas->laboratorium_id && !$bebas->acc_laboran ? '' : 'disabled' }}>
                                         <label class="custom-control-label" for="laboran_{{ $number }}"></label>
                                     </div>
                                 </td>
-                                <td class="text-center">
+                                <!-- <td class="text-center">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" 
                                                class="custom-control-input kalab-check" 
@@ -97,7 +93,7 @@
                                                {{ auth()->user()->kalab ? '' : 'disabled' }}>
                                         <label class="custom-control-label" for="kalab_{{ $number }}"></label>
                                     </div>
-                                </td>
+                                </td> -->
                             </tr>
                         @endforeach
                     </tbody>
@@ -116,7 +112,7 @@
                     <h6>Status Checklist</h6>
                     <div class="progress" style="height: 25px;">
                         <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: {{ ($totalChecked / 5) * 100 }}%"
+                             style="width: '{{ ($totalChecked / 5) * 100 }}%'"
                              aria-valuenow="{{ $totalChecked }}" 
                              aria-valuemin="0" 
                              aria-valuemax="5">
@@ -129,33 +125,22 @@
             <!-- Action Buttons -->
             <div class="row mt-4 pt-3 border-top">
                 @if((auth()->user()->laboran || auth()->user()->kalab) && $totalChecked === 5)
-                    @if(auth()->user()->laboran && !$bebas->acc_laboran)
+                    @if(auth()->user()->laboran && !$bebas->acc_laboran && auth()->user()->laboran->laboratorium == $bebas->laboratorium_id)
                         <div class="col-md-6">
                             <button class="btn btn-warning btn-block" id="btn-acc-laboran" data-bebas-id="{{ $bebas->id }}">
                                 <i class="fas fa-check"></i> Acc Laboran
                             </button>
                         </div>
-                    @elseif($bebas->acc_laboran)
+                    @elseif($bebas->acc_laboran && auth()->user()->laboran && auth()->user()->laboran->laboratorium == $bebas->laboratorium_id)
                         <div class="col-md-6">
-                            <button class="btn btn-warning btn-block" disabled>
-                                <i class="fas fa-check"></i> Sudah di-Acc Laboran
+                            <button class="btn btn-danger btn-block" id="btn-batal-acc-laboran" data-bebas-id="{{ $bebas->id }}" {{$bebas->acc_kalab != 0 ? 'disabled' : ''}}>
+                                <i class="fas fa-times"></i>
+                               Batal Acc Laboran
                             </button>
                         </div>
                     @endif
 
-                    @if(auth()->user()->kalab && !$bebas->acc_kalab)
-                        <div class="col-md-6">
-                            <button class="btn btn-success btn-block" id="btn-acc-kalab" data-bebas-id="{{ $bebas->id }}">
-                                <i class="fas fa-check-double"></i> Acc Kalab
-                            </button>
-                        </div>
-                    @elseif($bebas->acc_kalab)
-                        <div class="col-md-6">
-                            <button class="btn btn-success btn-block" disabled>
-                                <i class="fas fa-check-double"></i> Sudah di-Acc Kalab
-                            </button>
-                        </div>
-                    @endif
+                  
                 @endif
             </div>
         </div>
@@ -176,15 +161,15 @@
             updateChecklist(bebasId, checklistNumber, isChecked, 'laboran', $(this));
         });
 
-        // Handle Kalab Checkbox Change
-        $('.kalab-check').on('change', function() {
-            const checklistNumber = $(this).data('checklist-number');
-            const bebasId = $(this).data('bebas-id');
-            const isChecked = $(this).is(':checked');
+        // // Handle Kalab Checkbox Change
+        // $('.kalab-check').on('change', function() {
+        //     const checklistNumber = $(this).data('checklist-number');
+        //     const bebasId = $(this).data('bebas-id');
+        //     const isChecked = $(this).is(':checked');
 
-            console.log('Kalab check changed:', { checklistNumber, bebasId, isChecked });
-            updateChecklist(bebasId, checklistNumber, isChecked, 'kalab', $(this));
-        });
+        //     console.log('Kalab check changed:', { checklistNumber, bebasId, isChecked });
+        //     updateChecklist(bebasId, checklistNumber, isChecked, 'kalab', $(this));
+        // });
 
         // Update Checklist via AJAX
         function updateChecklist(bebasId, checklistNumber, isChecked, role, element) {
@@ -228,12 +213,38 @@
 
         // Handle Acc Laboran Button
         $('#btn-acc-laboran').on('click', function() {
-            const bebasId = $(this).data('bebas-id');
+            const bebasId = $(this).data('bebas-id');         
             
             if (confirm('Apakah Anda yakin akan memberikan persetujuan?')) {
+                var kodeLaboran = "{{ auth()->user()->laboran->kode_laboran ?? '' }}";
                 $.ajax({
                     type: 'POST',
                     url: '/bebas-lab/acc-laboran',
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                        bebas_id: bebasId,
+                        kode_laboran: kodeLaboran
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Persetujuan berhasil disimpan!');
+                            location.reload();
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + xhr.responseJSON.message);
+                    }
+                });
+            }
+        });
+
+        $('#btn-batal-acc-laboran').on('click', function() {
+            const bebasId = $(this).data('bebas-id');
+            
+            if (confirm('Apakah Anda yakin akan membatalkan persetujuan?')) {
+                $.ajax({
+                    type: 'POST',
+                    url: '/bebas-lab/batal-acc-laboran',
                     data: {
                         _token: $('meta[name="csrf-token"]').attr('content'),
                         bebas_id: bebasId
@@ -250,6 +261,8 @@
                 });
             }
         });
+
+        
 
         // Handle Acc Kalab Button
         $('#btn-acc-kalab').on('click', function() {

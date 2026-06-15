@@ -18,6 +18,7 @@ class BebasLaboratorium extends Model
         'ck_alat_ganti',
         'acc_laboran',
         'acc_kalab',
+        'tanggal_acc_kalab',
     ];
 
     /**
@@ -47,6 +48,11 @@ class BebasLaboratorium extends Model
     public function laboran()
     {
         return $this->belongsTo(Laboran::class, 'laborans_kode_laboran', 'kode_laboran');
+    }
+
+    public function kalab()
+    {
+        return $this->belongsTo(Pejabat::class);
     }
 
 
