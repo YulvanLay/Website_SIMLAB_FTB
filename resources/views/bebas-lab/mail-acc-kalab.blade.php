@@ -15,7 +15,7 @@
     </p>
 
     <p>
-        Pengajuan <strong>Bebas Laboratorium</strong> Anda telah disetujui oleh
+        Pengajuan <strong>Bebas Laboratorium</strong> telah disetujui oleh
         Kepala Laboratorium dan seluruh proses verifikasi telah selesai.
     </p>
 
@@ -44,7 +44,7 @@
 
         <li>
             <strong>Kepala Laboratorium :</strong>
-            {{ $kalab->nama_pejabat }}
+            {{ $kalab->nama_pejabat}}
         </li>
 
         <li>

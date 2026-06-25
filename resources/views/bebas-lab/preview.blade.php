@@ -71,6 +71,13 @@
                                 <td>{{ $number }}</td>
                                 <td>{{ $text }}</td>
                                 <td class="text-center">
+                                    @if(auth()->user()->pelanggan)
+                                        @if($bebas->$column)
+                                            <i class="fas fa-check text-success"></i>
+                                        @else
+                                            -
+                                        @endif
+                                    @else
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" 
                                                class="custom-control-input laboran-check" 
@@ -81,6 +88,7 @@
                                                {{ auth()->user()->laboran && auth()->user()->laboran->laboratorium == $bebas->laboratorium_id && !$bebas->acc_laboran ? '' : 'disabled' }}>
                                         <label class="custom-control-label" for="laboran_{{ $number }}"></label>
                                     </div>
+                                    @endif
                                 </td>
                                 <!-- <td class="text-center">
                                     <div class="custom-control custom-checkbox">
@@ -112,7 +120,7 @@
                     <h6>Status Checklist</h6>
                     <div class="progress" style="height: 25px;">
                         <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: '{{ ($totalChecked / 5) * 100 }}%'"
+                             style="width: {{ ($totalChecked / 5) * 100 }}%"
                              aria-valuenow="{{ $totalChecked }}" 
                              aria-valuemin="0" 
                              aria-valuemax="5">
@@ -133,7 +141,7 @@
                         </div>
                     @elseif($bebas->acc_laboran && auth()->user()->laboran && auth()->user()->laboran->laboratorium == $bebas->laboratorium_id)
                         <div class="col-md-6">
-                            <button class="btn btn-danger btn-block" id="btn-batal-acc-laboran" data-bebas-id="{{ $bebas->id }}" {{$bebas->acc_kalab != 0 ? 'disabled' : ''}}>
+                            <button class="btn btn-danger btn-block" id="btn-batal-acc-laboran" data-bebas-id="{{ $bebas->id }}">
                                 <i class="fas fa-times"></i>
                                Batal Acc Laboran
                             </button>
@@ -251,7 +259,7 @@
                     },
                     success: function(response) {
                         if (response.success) {
-                            alert('Persetujuan berhasil disimpan!');
+                            alert('Berhasil batal acc!');
                             location.reload();
                         }
                     },

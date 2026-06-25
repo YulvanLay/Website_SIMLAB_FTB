@@ -179,7 +179,7 @@
                     <img width="100" height="100"
                         src="{{ public_path('qrcode/' . $pelanggan->kode_pelanggan . '-' . $namaEdit . '.png') }}">
                     <br>
-                    ({{ $kalab->nama_pejabat }})
+                    ({{ $kalab->nama_pejabat}})
                 </td>
             </tr>
         </table>

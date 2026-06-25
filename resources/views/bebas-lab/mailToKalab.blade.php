@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html>
 
 <head>
@@ -8,12 +9,13 @@
 
 <body>
 
+    ```
     <p>Yth. Kepala Laboratorium,</p>
 
     <p>
-        Terdapat pengajuan Bebas Laboratorium yang telah diverifikasi dan
-        disetujui oleh Laboran, serta saat ini menunggu persetujuan
-        Bapak/Ibu selaku Kepala Laboratorium.
+        Dengan hormat, kami informasikan bahwa pengajuan Bebas Laboratorium
+        berikut telah berhasil disetujui dan diproses dalam Sistem Informasi
+        Manajemen Laboratorium (SIMLAB).
     </p>
 
     <p><strong>Detail Pengajuan:</strong></p>
@@ -23,13 +25,20 @@
         <li><strong>Nama Mahasiswa :</strong> {{ $pelanggan->nama_pelanggan }}</li>
         <li><strong>NRP/NIM :</strong> {{ $pelanggan->kode_pelanggan }}</li>
         <li><strong>Laboratorium :</strong> {{ $laboratorium->nama_laboratorium }}</li>
-        <li><strong>Tanggal Verifikasi Laboran :</strong> {{ $tanggal }}</li>
-        <li><strong>Status :</strong> Menunggu Persetujuan Kepala Laboratorium</li>
+        <li><strong>Tanggal Persetujuan :</strong> {{ $tanggal }}</li>
+        <li><strong>Status :</strong> Disetujui</li>
     </ul>
 
     <p>
-        Mohon untuk melakukan peninjauan dan memberikan persetujuan melalui
-        Sistem Informasi Manajemen Laboratorium (SIMLAB).
+        Persetujuan Kepala Laboratorium telah diberikan secara otomatis
+        sesuai mekanisme yang berlaku pada sistem. Dokumen Bebas
+        Laboratorium untuk mahasiswa yang bersangkutan telah diterbitkan
+        dan dikirimkan kepada pihak terkait.
+    </p>
+
+    <p>
+        Email ini dikirimkan sebagai pemberitahuan dan arsip administrasi
+        bahwa proses persetujuan telah selesai dilakukan.
     </p>
 
     <p>
@@ -46,6 +55,7 @@
         Sistem Informasi Manajemen Laboratorium (SIMLAB)<br>
         Fakultas Teknologi dan Bisnis
     </p>
+    ```
 
 </body>
 

@@ -118,17 +118,19 @@
                                     console.log("isi dari URL: ", url);
                                     btnForm = "<a class='btn btn-primary' href='" + url + "' target='_blank'><i class='fas fa-file-pdf'></i> Cetak</a>"
 
-                                } else if (row.acc_laboran && isKalab) {
-                                    if (row.laboratorium.kode_pejabat == kodeKalabLogin) {
-                                        StatusAccKalab = "<button class='btn btn-warning btn-sm btn-acc-kalab' data-bebas-id='" + row.id + "' onclick='accKalab(" + row.id + ")'><i class='fas fa-user-check'></i> ACC Kalab </button>";
-                                    }
+                                }
+                                // else if (row.acc_laboran && isKalab) {
+                                //     if (row.laboratorium.kode_pejabat == kodeKalabLogin) {
+                                //         StatusAccKalab = "<button class='btn btn-warning btn-sm btn-acc-kalab' data-bebas-id='" + row.id + "' onclick='accKalab(" + row.id + ")'><i class='fas fa-user-check'></i> ACC Kalab </button>";
+                                //     }
 
-                                    else {
-                                        StatusAccKalab = '-'
-                                    }
-                                    btnForm = '-';
+                                //     else {
+                                //         StatusAccKalab = '-'
+                                //     }
+                                //     btnForm = '-';
 
-                                } else {
+                                // } 
+                                else {
 
                                     StatusAccKalab = `-`;
                                     btnForm = `-`;
@@ -177,28 +179,7 @@
 
         });
 
-        function accKalab(id) {
-            if (confirm('Apakah Anda yakin ingin meng-ACC Kalab untuk Bebas Lab ini?')) {
-                var kodeKalab = "{{ auth()->user()->kalab->kode_pejabat ?? '' }}";
-                $.ajax({
-                    type: 'POST',
-                    url: '/bebas-lab/acc-kalab/',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        bebas_id: id,
-                        kode_kalab: kodeKalab,
-                        kode_pelanggan: kode_pelanggan
-                    },
-                    success: function (data) {
-                        if (data.status == 'oke') {
-                            // Refresh halaman atau lakukan tindakan lain jika diperlukan
-                            loadBebasLab();
-                        }
-                    }
-                });
-            }
-
-        }
+        //  
 
         function loadBebasLab() {
             $.ajax({
