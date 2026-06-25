@@ -95,9 +95,13 @@
 
                                 var row = rows[i];
 
-                                var btnPreview =
-                                    "<button class='btn btn-info btn-sm' onclick='openPreview(" + row.id + ")'>"
-                                    + "<i class='fas fa-eye'></i> Preview</button>";
+                                var btnPreview = '-';
+
+                                if (row.id) {
+                                    btnPreview =
+                                        "<button class='btn btn-info btn-sm' onclick='openPreview(" + row.id + ")'>"
+                                        + "<i class='fas fa-eye'></i> Preview</button>";
+                                }
 
                                 var StatusAccLaboran =
                                     row.acc_laboran
@@ -111,8 +115,8 @@
                                     console.log("berhasil masuk kek row acc kalab");
                                     StatusAccKalab = "<i class='fas fa-check text-success'></i>";
                                     var url = "{{ url('form-bebas-lab/:kodePelanggan/:namaLab') }}"
-                                    url = url.replace(':kodePelanggan', row.pelanggan.kode_pelanggan);
-                                    namaLab = row.laboratorium.nama_laboratorium;
+                                    url = url.replace(':kodePelanggan', row.kode_pelanggan);
+                                    namaLab = row.nama_laboratorium;
                                     namaLab = namaLab.replace(/\s+/g, '-');
                                     url = url.replace(':namaLab', namaLab);
                                     console.log("isi dari URL: ", url);
@@ -137,7 +141,7 @@
                                 }
 
 
-                                var namaLab = '-';
+                                var namaLab = row.nama_laboratorium;
 
                                 if (row.laboratorium) {
                                     namaLab = row.laboratorium.nama_laboratorium;
@@ -218,7 +222,7 @@
 
                                 StatusAccKalab = "<i class='fas fa-check text-success'></i>";
                                 var url = "{{ url('form-bebas-lab/:kodePelanggan/:namaLab') }}"
-                                url = url.replace(':kodePelanggan', row.pelanggan.kode_pelanggan);
+                                url = url.replace(':kodePelanggan', row.kode_pelanggan);
                                 namaLab = row.laboratorium.nama_laboratorium;
                                 namaLab = namaLab.replace(/\s+/g, '-');
                                 url = url.replace(':namaLab', namaLab);
@@ -227,7 +231,7 @@
 
                             } else if (row.acc_laboran && isKalab) {
 
-                                if (row.laboratorium.kode_pejabat == kodeKalabLogin) {
+                                if (row.kode_pejabat == kodeKalabLogin) {
                                     StatusAccKalab = "<button class='btn btn-warning btn-sm btn-acc-kalab' data-bebas-id='" + row.id + "' onclick='accKalab(" + row.id + ")'><i class='fas fa-user-check'></i> ACC Kalab </button>";
                                 }
 

@@ -248,7 +248,7 @@ Route::prefix('lainnya')->name('lainnya.')->group(function () {
 	Route::post('pelanggan/tambah-pelanggan', 'PelangganController@store')->name('Pelanggan.store');
 	Route::get('/pelanggan/{id}', 'PelangganController@show');
 	Route::get('/pelanggan/{id}/edit', 'PelangganController@edit');
-	Route::post('/pelanggan/{id}/update', 'PelangganController@update')->name('PelaFlognggan.update');
+	Route::post('/pelanggan/{id}/update', 'PelangganController@update')->name('Pelanggan.update');
 	Route::resource('pelanggan', 'PelangganController');
 
 	//Periode
@@ -301,5 +301,47 @@ Auth::routes();
 
 Route::get('/home', 'HomeController@index')->name('home');
 
+// Route::get('/generate-bebas-lab-lama', function () {
+
+//     $pelanggans = App\Pelanggan::all();
+//     $laboratoriums = App\Laboratorium::all();
+
+//     foreach ($pelanggans as $pelanggan) {
+
+//         foreach ($laboratoriums as $lab) {
+
+//             $cek = App\BebasLaboratorium::where(
+//                 'kode_pelanggan',
+//                 $pelanggan->kode_pelanggan
+//             )
+//             ->where(
+//                 'laboratorium_id',
+//                 $lab->id
+//             )
+//             ->exists();
+
+//             if (!$cek) {
+
+//                 $bebas = new App\BebasLaboratorium();
+
+//                 $bebas->kode_pelanggan = $pelanggan->kode_pelanggan;
+//                 $bebas->laboratorium_id = $lab->id;
+
+//                 $bebas->ck_bebas_pinjaman = 0;
+//                 $bebas->ck_buka_bakteri = 0;
+//                 $bebas->ck_bayar_bahan = 0;
+//                 $bebas->ck_alat_bersih = 0;
+//                 $bebas->ck_alat_ganti = 0;
+
+//                 $bebas->acc_laboran = 0;
+//                 $bebas->acc_kalab = 0;
+
+//                 $bebas->save();
+//             }
+//         }
+//     }
+
+//     return 'Selesai';
+// });
 
 

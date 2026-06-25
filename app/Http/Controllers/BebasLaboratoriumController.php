@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\DB;
 
 class BebasLaboratoriumController extends Controller
 {
@@ -37,22 +38,29 @@ class BebasLaboratoriumController extends Controller
 
     public function getByPelanggan($kode_pelanggan)
     {
-        $data = BebasLaboratorium::with([
-            'pelanggan',
-            'laboratorium',
-            'laboran',
-            'periode'
-        ])
-            ->where('kode_pelanggan', $kode_pelanggan)
+        $data = DB::table('laboratoriums as l')
+            ->leftJoin('bebas_laboratoriums as bl', function ($join) use ($kode_pelanggan) {
+                $join->on('l.id', '=', 'bl.laboratorium_id')
+                    ->where('bl.kode_pelanggan', '=', $kode_pelanggan);
+            })
+            ->select(
+                'l.id as laboratorium_id',
+                'l.nama_laboratorium',
+                'l.kode_pejabat',
+
+                'bl.id',
+                'bl.kode_pelanggan',
+                'bl.acc_laboran',
+                'bl.acc_kalab',
+                'bl.tanggal_acc_kalab'
+            )
+            ->orderByRaw('CASE WHEN bl.id IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('l.id')
             ->get();
 
-
-        return
-            response()->json([
-                'data' => $data
-            ]);
-
-        // dd($data->toArray());
+        return response()->json([
+            'data' => $data
+        ]);
     }
 
     /**
